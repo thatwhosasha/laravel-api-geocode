@@ -11,14 +11,12 @@ use Illuminate\Http\Request;
 
 class GeocodeController extends Controller
 {
-    private GeocoderInterface $geocoder;
-    private QueryRepository $queryRepository;
 
-    public function __construct(GeocoderInterface $geocoder, QueryRepository $queryRepository)
-    {
-        $this->geocoder = $geocoder;
-        $this->queryRepository = $queryRepository;
-    }
+    public function __construct(
+        private readonly GeocoderInterface $geocoder,
+        private readonly QueryRepository   $queryRepository
+    )
+    {}
 
     public function index()
     {

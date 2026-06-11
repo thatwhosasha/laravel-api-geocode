@@ -41,42 +41,35 @@ class YandexGeocoder implements GeocoderInterface
 
         // Извлекаем коллекцию объектов
         $featureMembers = $data['response']['GeoObjectCollection']['featureMember'] ?? [];
-        if (empty($featureMembers)) {
-            return [];
-        }
-        $results = [];
 
-        // Обход каждого элемента и фильтрация по Москве
-        foreach ($featureMembers as $featureMember) {
-            $geoObject = $featureMember['GeoObject'] ?? null;
-            if (!$geoObject) {
-                continue;
-            }
+        return array_values(array_filter(
+            array_map([$this, 'parseFeatureMember'], $featureMembers)
+        ));
+    }
 
-            $metaData = $geoObject['metaDataProperty']['GeocoderMetaData'] ?? [];
-
-            $components = $metaData['Address']['Components'] ?? [];
-
-            if(!$this->isMoscow( $components)) {
-                continue;
-            }
-
-            $extracted = $this->extractFromComponents($components);
-
-            $fullAddress = $metaData['text'] ?? $geoObject['name'] ?? '';
-
-            $results[] = new AddressResult([
-                'fullAddress' => $fullAddress,
-                 'district' => $extracted['district'],
-                 'metro' => $extracted['metro'],
-                 'street' => $extracted['street'],
-                 'house' => $extracted['house'],
-            ]);
-
+    private function parseFeatureMember(array $featureMember): ?AddressResult
+    {
+        $geoObject = $featureMember['GeoObject'] ?? null;
+        if (!$geoObject) {
+            return null;
         }
 
-        return $results;
+        $metaData   = $geoObject['metaDataProperty']['GeocoderMetaData'] ?? [];
+        $components = $metaData['Address']['Components'] ?? [];
 
+        if (!$this->isMoscow($components)) {
+            return null;
+        }
+
+        $extracted = $this->extractFromComponents($components);
+
+        return new AddressResult(
+            fullAddress: $metaData['text'] ?? $geoObject['name'] ?? '',
+            district:   $extracted['district'] ?? 'Не указан',
+            metro:      $extracted['metro']    ?? 'Не указано',
+            street:     $extracted['street'],
+            house:      $extracted['house'],
+        );
     }
 
     private function isMoscow( array $components): bool
