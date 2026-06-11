@@ -1,0 +1,51 @@
+# version: "3.1"
+services:
+  webserver:
+    image: nginx:alpine
+    container_name: ${PROJECT_NAME}-webserver
+    working_dir: /application
+    networks:
+      - internal
+    volumes:
+      - ./../:/application
+      - ./sourcefiles/nginx:/etc/nginx/conf.d
+    ports:
+      - "${NGINX_PORT}:80"
+
+  php-fpm:
+    build: sourcefiles/php-fpm
+    container_name: ${PROJECT_NAME}-php-fpm
+
+    working_dir: /application
+    environment:
+      - PHP_WORKER_INSTALL_BCMATH=true
+    volumes:
+      - ./../:/application
+      - ./sourcefiles/php-fpm/php-ini-overrides.ini:/usr/local/etc/php/conf.d/99-overrides.ini
+    networks:
+      - internal
+  mysql:
+    image: mysql:8.0.46
+    container_name: ${PROJECT_NAME}-mysql
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'   # или задайте отдельный root пароль
+      MYSQL_DATABASE: '${DB_DATABASE}'
+      MYSQL_USER: '${DB_USERNAME}'
+      MYSQL_PASSWORD: '${DB_PASSWORD}'
+      MYSQL_INITDB_SKIP_TZINFO: 1   # отключаем загрузку зон
+    volumes:
+      # - ./sourcefiles/mysql:/tmp
+      - mysql-data:/var/lib/mysql          # том для данных MySQL
+    ports:
+      - '${DB_PORT}:3306'                     # порт MySQL
+    networks:
+      - internal
+
+volumes:
+  mysql-data:
+    driver: local
+networks:
+  internal:
+    driver: bridge
