@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-//use App\Models\SearchQuery;
 use App\Repositories\QueryRepository;
 use App\Exceptions\GeocoderException;
 use App\Services\GeocoderInterface;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 
 class GeocodeController extends Controller
@@ -38,7 +38,6 @@ class GeocodeController extends Controller
         try {
             $results = $this->geocoder->search($address);
 
-//            SearchQuery::firstOrCreate(['query' => $normalized]);
             $this->queryRepository->saveUnique($normalized);
 
             return view('geocode.index', [
@@ -51,9 +50,9 @@ class GeocodeController extends Controller
                 'address' => $address,
             ]);
         } catch (\Exception $e) {
-            \Log::error('GeocodeController error', ['exception' => $e]);
+            Log::error('GeocodeController error', ['exception' => $e]);
             return view('geocode.index', [
-                'error' => 'Произошла внутрення ошибка.',
+                'error' => 'Произошла внутренняя ошибка.',
                 'address' => $address,
             ]);
         }

@@ -4,16 +4,14 @@ namespace App\Services;
 use App\DTO\AddressResult;
 use Illuminate\Http\Client\Factory;
 use App\Exceptions\GeocoderException;
+use Illuminate\Support\Facades\Log;
 
 class YandexGeocoder implements GeocoderInterface
 {
-    private Factory $http;
-    private string $apiKey;
-
-    public function __construct(Factory $http, string $apiKey) {
-        $this->http = $http;
-        $this->apiKey = $apiKey;
-    }
+    public function __construct(
+        private Factory $http,
+        private string $apiKey,
+    ){}
 
     public function search(string $address): array
     {
@@ -28,18 +26,23 @@ class YandexGeocoder implements GeocoderInterface
 
         // Ошибка HTTP
         if ($response->failed()) {
-            throw new GeocoderException( 'Ошибка запроса к геокодеру' . $response->body());
+            Log::warning('Ошибка HTTP-запроса к геокодеру', [
+                'status' => $response->status(),
+                'body'   => $response->body(),
+            ]);
+            throw new GeocoderException('Ошибка соединения с геокодером: ' . $response->status());
         }
 
         $data = $response->json();
 
-        // Проверяем ошибку внутри JSON ответа
         if (isset($data['error'])) {
-            \Log::warning('Yandex geocoder HTTP error', ['body' => $response->body(), 'status' => $response->status()]);
-            throw new GeocoderException('Ошибка запроса к геокодеру: ' . $response->status());
+            $message = $data['error']['message'] ?? 'Неизвестная ошибка';
+            Log::warning('Ошибка API Яндекс геокодера', [
+                'message' => $message,
+            ]);
+            throw new GeocoderException('Ошибка геокодера: ' . $message);
         }
 
-        // Извлекаем коллекцию объектов
         $featureMembers = $data['response']['GeoObjectCollection']['featureMember'] ?? [];
 
         return array_values(array_filter(
@@ -54,7 +57,7 @@ class YandexGeocoder implements GeocoderInterface
             return null;
         }
 
-        $metaData   = $geoObject['metaDataProperty']['GeocoderMetaData'] ?? [];
+        $metaData = $geoObject['metaDataProperty']['GeocoderMetaData'] ?? [];
         $components = $metaData['Address']['Components'] ?? [];
 
         if (!$this->isMoscow($components)) {
@@ -65,10 +68,10 @@ class YandexGeocoder implements GeocoderInterface
 
         return new AddressResult(
             fullAddress: $metaData['text'] ?? $geoObject['name'] ?? '',
-            district:   $extracted['district'] ?? 'Не указан',
-            metro:      $extracted['metro']    ?? 'Не указано',
-            street:     $extracted['street'],
-            house:      $extracted['house'],
+            district: $extracted['district'] ?? 'Не указан',
+            metro: $extracted['metro']    ?? 'Не указано',
+            street: $extracted['street'],
+            house: $extracted['house'],
         );
     }
 
